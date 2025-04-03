@@ -1,0 +1,96 @@
+/* === Google Fonts === */
+body {
+  font-family: 'Lato', sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* === Container élargi === */
+.container {
+  max-width: 1440px;
+  padding: 0 2rem;
+}
+
+/* === Hero Section === */
+.hero {
+  background-color: white;
+  padding: 40px 20px 20px;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+.hero img {
+  max-height: 1600px;
+  margin-bottom: 15px;
+}
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 5.4rem;
+  font-style: italic;
+  color: #333;
+}
+.hero p {
+  font-size: 1.5rem;
+  font-style: italic;
+  color: #333;
+  margin-top: 5px;
+}
+
+/* === Section Titles === */
+h5 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 500;
+  color: #1D2D44;
+}
+
+/* === Custom Buttons === */
+.btn-gold {
+  background-color: #B49C68;
+  color: white;
+  border: none;
+}
+.btn-gold:hover {
+  background-color: #9f8a58;
+  color: white;
+}
+.btn-blue {
+  background-color: #1D2D44;
+  color: white;
+  border: none;
+}
+.btn-blue:hover {
+  background-color: #163150;
+  color: white;
+}
+
+/* === Inputs & Tables === */
+input.form-control,
+select.form-control,
+.table {
+  font-size: 1.1rem;
+  border-radius: 0;
+  border-color: #ccc;
+}
+
+.card {
+  font-size: 1.1rem;
+}
+
+/* === Gainers Table === */
+#gainersTable th, #gainersTable td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* === Pie Chart === */
+#portfolioChart {
+  max-width: 600px;
+  height: auto;
+  margin: 0 auto;
+  display: block;
+}
+
+/* === Buttons === */
+.btn {
+  padding: 0.6rem 1.2rem;
+  font-size: 1.05rem;
+}

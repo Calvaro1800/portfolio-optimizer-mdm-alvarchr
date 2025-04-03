@@ -1,0 +1,45 @@
+name: Full MDM Automation
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 10,18 * * *'  # Tous les jours à 10h et 18h
+
+jobs:
+  run-full-pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GGUF_MODEL_PATH: /app/models/llama-model.gguf
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 🧪 Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ cmake libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev python3-dev
+          pip install -r requirements.txt
+
+      - name: 🧠 Run scrapers (API + News)
+        run: |
+          python update_gainers.py
+          python update_all_stocks.py
+          python update_news.py
+          python analyze_sentiment.py
+
+      - name: 🐳 Build Docker image
+        run: docker build -t mdm-portfolio .
+
+      - name: 🚀 Run container (background test)
+        run: docker run -d -p 5000:5000 --env-file .env mdm-portfolio

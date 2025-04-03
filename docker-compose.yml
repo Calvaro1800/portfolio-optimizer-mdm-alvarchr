@@ -1,0 +1,32 @@
+services:
+  portfolio-optimizer:
+    build: .
+    ports:
+      - "5000:5000"  # Permet d'accéder à l'app via localhost:5000
+    environment:
+      - MONGO_URI=${MONGO_URI}  # URI de connexion MongoDB, stockée dans .env
+      - HF_TOKEN=${HF_TOKEN}    # Token Hugging Face, stocké dans .env
+    volumes:
+      - .:/app  # Monte le répertoire local dans le container
+    networks:
+      - portfolio-network
+    depends_on:
+      - mongodb  # Assure que MongoDB est démarré avant Flask (si MongoDB est utilisé localement)
+
+  # Si tu souhaites utiliser MongoDB localement (optionnel)
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"  # Port par défaut de MongoDB
+    networks:
+      - portfolio-network
+    volumes:
+      - mongo-data:/data/db  # Volume pour persistance des données
+
+networks:
+  portfolio-network:
+    driver: bridge  # Utilisation d'un réseau pont pour connecter les containers
+
+volumes:
+  mongo-data:
+    driver: local  # Volume local pour persister les données de MongoDB

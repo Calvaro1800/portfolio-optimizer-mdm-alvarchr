@@ -1,0 +1,33 @@
+# .gitignore
+
+# Fichiers sensibles
+.env
+*.key
+*.pem
+
+# Environnement Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Cache et logs
+.cache/
+logs/
+*.log
+*.html
+
+# Données locales
+uploads/
+scraped_data.json
+
+# Jupyter ou notebooks (si jamais)
+.ipynb_checkpoints/
+
+# Docker (si utilisé)
+*.db
