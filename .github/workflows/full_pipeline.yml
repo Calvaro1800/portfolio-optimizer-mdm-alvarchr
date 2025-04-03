@@ -14,7 +14,7 @@ jobs:
     env:
       MONGO_URI: ${{ secrets.MONGO_URI }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      GGUF_MODEL_PATH: /app/models/llama-model.gguf
+      GGUF_MODEL_PATH: ${{ secrets.GGUF_MODEL_PATH }}
 
     steps:
       - name: 📥 Checkout repo
@@ -36,7 +36,7 @@ jobs:
           python update_gainers.py
           python update_all_stocks.py
           python update_news.py
-          python analyze_sentiment.py
+          python scripts\ scraping/analyse/analyze_sentiment.py
 
       - name: 🐳 Build Docker image
         run: docker build -t mdm-portfolio .
