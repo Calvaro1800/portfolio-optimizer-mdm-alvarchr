@@ -6,7 +6,8 @@ on:
       - main
   schedule:
     - cron: '0 10,18 * * *'  # Tous les jours à 10h et 18h
-      workflow_dispatch:  
+  workflow_dispatch:         # ✅ Permet de lancer le workflow manuellement
+
 jobs:
   run-full-pipeline:
     runs-on: ubuntu-latest
@@ -14,7 +15,6 @@ jobs:
     env:
       MONGO_URI: ${{ secrets.MONGO_URI }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      GGUF_MODEL_PATH: ${{ secrets.GGUF_MODEL_PATH }}
 
     steps:
       - name: 📥 Checkout repo
@@ -28,18 +28,18 @@ jobs:
       - name: 🧪 Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ cmake libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev python3-dev
+          sudo apt-get install -y gcc g++ cmake libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev python3-dev curl
           pip install -r requirements.txt
 
-      - name: 🧠 Run scrapers (API + News)
+      - name: 🧠 Run scrapers (API + News + Sentiment)
         run: |
           python update_gainers.py
           python update_all_stocks.py
           python update_news.py
-          python scripts\ scraping/analyse/analyze_sentiment.py
+          python analyze_sentiment.py
 
       - name: 🐳 Build Docker image
         run: docker build -t mdm-portfolio .
 
       - name: 🚀 Run container (background test)
-        run: docker run -d -p 5000:5000 --env-file .env mdm-portfolio
+        run: docker run -d -p 5050:5000 --env MONGO_URI="${{ secrets.MONGO_URI }}" --env HF_TOKEN="${{ secrets.HF_TOKEN }}" mdm-portfolio
