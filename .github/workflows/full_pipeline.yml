@@ -1,45 +1,45 @@
-name: Full MDM Automation
+name: 🔄 Update All Financial Data (Every 6h)
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    - cron: '0 10,18 * * *'  # Tous les jours à 10h et 18h
-  workflow_dispatch:         # ✅ Permet de lancer le workflow manuellement
+    - cron: '0 */6 * * *'  # Toutes les 6 heures
+  workflow_dispatch:       # Exécution manuelle possible
 
 jobs:
-  run-full-pipeline:
+  update-data:
     runs-on: ubuntu-latest
 
-    env:
-      MONGO_URI: ${{ secrets.MONGO_URI }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-
     steps:
-      - name: 📥 Checkout repo
+      - name: 📥 Checkout repository
         uses: actions/checkout@v3
 
       - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.10'
 
-      - name: 🧪 Install dependencies
+      - name: 📦 Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc g++ cmake libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev python3-dev curl
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🧠 Run scrapers (API + News + Sentiment)
+      - name: 🧠 Update Gainers (FORCE_GAINERS=true)
+        env:
+          FORCE_GAINERS: true
+          MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
           python update_gainers.py
-          python update_all_stocks.py
+
+      - name: 🗞️ Update News (FORCE_NEWS=true)
+        env:
+          FORCE_NEWS: true
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: |
           python update_news.py
-          python update_sentiment_score.py
 
-      - name: 🐳 Build Docker image
-        run: docker build -t mdm-portfolio .
-
-      - name: 🚀 Run container (background test)
-        run: docker run -d -p 5050:5000 --env MONGO_URI="${{ secrets.MONGO_URI }}" --env HF_TOKEN="${{ secrets.HF_TOKEN }}" mdm-portfolio
+      - name: 🧾 Update All Stocks (FORCE_ALL=true)
+        env:
+          FORCE_ALL: true
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: |
+          python update_all_stocks.py
