@@ -1,45 +1,46 @@
-name: 🔄 Update All Financial Data (Every 6h)
+name: 🔁 Full Data Pipeline (Every 6h)
 
 on:
   schedule:
     - cron: '0 */6 * * *'  # Toutes les 6 heures
-  workflow_dispatch:       # Exécution manuelle possible
+  workflow_dispatch:       # Lancement manuel possible
 
 jobs:
-  update-data:
+  run-pipeline:
+    name: 🚀 Run Full Data Update in Docker
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📦 Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: 🐍 Setup Python (pour vérification rapide)
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: ✅ Check Python version
+        run: python --version
 
-      - name: 🧠 Update Gainers (FORCE_GAINERS=true)
-        env:
-          FORCE_GAINERS: true
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: |
-          python update_gainers.py
+      - name: 🐳 Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: 🗞️ Update News (FORCE_NEWS=true)
-        env:
-          FORCE_NEWS: true
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: |
-          python update_news.py
+      - name: 🧱 Build Docker image
+        run: docker build -t portfolio-optimizer .
 
-      - name: 🧾 Update All Stocks (FORCE_ALL=true)
-        env:
-          FORCE_ALL: true
-          MONGO_URI: ${{ secrets.MONGO_URI }}
+      - name: 🔐 Run scripts inside Docker container
         run: |
-          python update_all_stocks.py
+          docker run --rm \
+            -e MONGO_URI="${{ secrets.MONGO_URI }}" \
+            -e HF_TOKEN="${{ secrets.HF_TOKEN }}" \
+            -e YF_API_KEY="${{ secrets.YF_API_KEY }}" \
+            portfolio-optimizer /bin/bash -c "
+              echo '📈 Updating Gainers...'; \
+              python update_gainers.py && \
+              echo '📘 Updating All Stocks...'; \
+              python update_all_stocks.py && \
+              echo '🗞️ Scraping News...'; \
+              python update_news.py && \
+              echo '🧠 Analyzing Sentiment...'; \
+              python update_sentiment_score.py \
+              "
