@@ -31,13 +31,12 @@ jobs:
           sudo apt-get install -y gcc g++ cmake libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev python3-dev curl
           pip install -r requirements.txt
 
-       - name: 🧠 Run scrapers (API + News + Sentiment)
+      - name: 🧠 Run scrapers (API + News + Sentiment)
         run: |
           python update_gainers.py
           python update_all_stocks.py
           python update_news.py
           python update_sentiment_score.py
-
 
       - name: 🐳 Build Docker image
         run: docker build -t mdm-portfolio .
