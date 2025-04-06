@@ -39,3 +39,5 @@ pytest
 
 # === 🔄 Cache & Backend Utils ===
 diskcache
+
+gunicorn

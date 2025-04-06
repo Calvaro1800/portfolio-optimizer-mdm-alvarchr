@@ -16,3 +16,7 @@ logs/
 # Ignore testing files and directories
 tests/
 
+echo "models/llama/*.gguf" >> .gitignore
+git add .gitignore
+git commit -m "🚫 Prevent heavy models from being tracked again"
+git push origin main
