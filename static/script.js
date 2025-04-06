@@ -83,7 +83,8 @@ function sellStock(symbol) {
 function autofillAI(stock) {
   document.getElementById("questionInput").value = `What is the prediction for ${stock._id}?`;
   currentPrice = stock.price || 100;
-  document.getElementById("aiResponse").innerHTML = "";
+  document.getElementById("ottoAnswer").innerHTML = "";
+  document.getElementById("aiResponse").style.display = "none";
 }
 
 // 📤 Upload
@@ -189,20 +190,20 @@ function updatePortfolioMetrics() {
     });
 }
 
-// 🤖 Ask AI (✅ corrigé sans `context`)
+// 🤖 Ask AI (corrected)
 document.getElementById("aiForm").addEventListener("submit", async function (e) {
   e.preventDefault();
 
   const question = document.getElementById("questionInput").value.trim();
   if (!question) {
-    document.getElementById("aiResponse").innerHTML = `<span class="text-danger">Please provide a valid question.</span>`;
+    document.getElementById("ottoAnswer").innerHTML = `<span class="text-danger">Please provide a valid question.</span>`;
+    document.getElementById("aiResponse").style.display = "block";
     return;
   }
 
-  const sentimentScore = parseFloat(document.getElementById("sentimentResult")?.innerText?.match(/-?\d+(\.\d+)?/)?.[0] || "-0.3");
-
+  const sentimentScore = parseFloat(document.getElementById("avg-score")?.innerText || "-0.3");
   const gainers_list = allGainers.map(g => g._id);
-  const transactions = "No recent transactions"; // Option à dynamiser plus tard
+  const transactions = "No recent transactions";
 
   const response = await fetch("/ask-llm", {
     method: "POST",
@@ -220,22 +221,23 @@ document.getElementById("aiForm").addEventListener("submit", async function (e) 
 
   const data = await response.json();
   if (data.status === "success") {
-    document.getElementById("aiResponse").innerHTML = `
+    document.getElementById("ottoAnswer").innerHTML = `
       <strong>Answer:</strong> ${data.answer}<br>
       <strong>Sharpe Classification:</strong> ${data.classification}
     `;
   } else {
-    document.getElementById("aiResponse").innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
+    document.getElementById("ottoAnswer").innerHTML = `<span class="text-danger">❌ ${data.message}</span>`;
   }
+  document.getElementById("aiResponse").style.display = "block";
 });
 
 // 📰 Sentiment buttons
-document.getElementById("analyzeSentiment").addEventListener("click", async () => {
+document.getElementById("list-news-btn").addEventListener("click", async () => {
   const res = await fetch("/analyze-sentiment");
   const data = await res.json();
   updateSentimentUI(data);
 });
-document.getElementById("analyzeSentimentLocal").addEventListener("click", async () => {
+document.getElementById("analyze-news-btn").addEventListener("click", async () => {
   const res = await fetch("/analyze-news-local");
   const data = await res.json();
   updateSentimentUI(data);
@@ -243,32 +245,15 @@ document.getElementById("analyzeSentimentLocal").addEventListener("click", async
 
 // 🧠 Update Sentiment UI
 function updateSentimentUI(data) {
-  const list = document.getElementById("newsList");
+  const list = document.getElementById("news-list");
   list.innerHTML = "";
   data.news.forEach(n => {
     list.innerHTML += `<li class='list-group-item'>📰 <a href='${n.url}' target='_blank'>${n.title}</a></li>`;
   });
 
-  document.getElementById("sentimentResult").innerHTML = `Average sentiment score: <strong>${data.avg_score.toFixed(2)}</strong>`;
+  document.getElementById("avg-score").innerText = data.avg_score.toFixed(2);
   let comment = "Neutral.";
   if (data.avg_score > 0) comment = "Positive sentiment detected 📈";
   else if (data.avg_score < 0) comment = "Negative sentiment detected ⚠️";
-  document.getElementById("sentimentComment").innerHTML = `<strong>Comment:</strong> ${comment}`;
+  document.getElementById("sentiment-comment").innerText = comment;
 }
-
-// 📅 Advisor dropdown
-document.getElementById("advisorSelect").addEventListener("change", function () {
-  const selected = this.value;
-  const img = document.getElementById("advisorImage");
-  img.src = selected === "Gordon Gekko" ? "/images/gekko.jpg" :
-             selected === "Michael Burry" ? "/images/burry.jpg" :
-             "/images/dalio.jpg";
-  img.style.display = "block";
-});
-
-// 📬 Appointment request
-document.getElementById("requestAppointment").addEventListener("click", () => {
-  const advisor = document.getElementById("advisorSelect").value;
-  document.getElementById("advisorResponse").innerHTML =
-    `Thank you. Your advisor will contact you shortly to schedule a meeting.`;
-});

@@ -7,16 +7,20 @@ echo "1️⃣  Run Flask app locally"
 echo "2️⃣  Build & run Docker container"
 echo "3️⃣  Run scrapers (gainers + news + all stocks + sentiment)"
 echo "4️⃣  Full automation (scrape + build + run)"
+echo "5️⃣  Run with Gunicorn (port 5050)"
 echo "❌  Quit"
 echo "---------------------------------------------"
-read -p "➡️  Choose an option [1-4]: " option
+read -p "➡️  Choose an option [1-5]: " option
 
 case $option in
-  1)
-    echo "🚀 Launching Flask app locally..."
+  
+    1)
+
+    echo "🚀 Launching Flask app locally on port 5151..."
     export FLASK_APP=app.py
-    flask run --host=0.0.0.0 --port=5000
+    flask run --host=0.0.0.0 --port=5151
     ;;
+
   2)
     echo "🐳 Building Docker container..."
     docker build -t portfolio-optimizer .
@@ -58,6 +62,14 @@ case $option in
     echo "🐳 Building and running Docker container..."
     docker build -t portfolio-optimizer .
     docker run -p 5000:5000 -v $(pwd)/models:/app/models --env-file .env portfolio-optimizer
+    ;;
+  5)
+    echo "🧼 Cleaning port 5050 (if occupied)..."
+    kill -9 $(lsof -t -i :5050) 2>/dev/null
+
+    echo "🚀 Launching Gunicorn on port 5050..."
+    export PORT=5050
+    gunicorn app:app --bind=0.0.0.0:$PORT --timeout 600
     ;;
   *)
     echo "👋 Exiting. Bye!"

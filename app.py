@@ -2,15 +2,16 @@ import os
 import base64
 from io import BytesIO
 import pandas as pd
-import matplotlib # type: ignore
+import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt # type: ignore
+import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from transformers import pipeline
+from datetime import datetime
 
 # 📦 Core IA
 from core.regression_model import predict_performance
@@ -18,7 +19,7 @@ from core.classifier import classify_sharpe
 from core.llm_advisor import generate_financial_advice
 from core.portfolio_utils import load_cleaned_data
 
-# 🔐 Variables d’environnement
+# 🔐 Load env
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -32,35 +33,22 @@ db = client["gainers_db"]
 def index():
     return render_template('index.html')
 
-# ✅ Corrigé : route LLM sans context
+# 🤖 IA Otto (LLM)
 @app.route('/ask-llm', methods=['POST'])
 def ask_llm():
     try:
         data = request.get_json()
-        question = data.get("question", "")
-        sentiment_score = float(data.get("sentiment_score", 0.0))
-        price = float(data.get("price", 100))
-        gainers_list = data.get("gainers_list", [])
-        portfolio = data.get("portfolio", {})
-        sharpe_value = float(data.get("sharpe_value", 0.0))
-        transactions = data.get("transactions", "")
-
-        if not question:
-            return jsonify({"status": "error", "message": "No question provided"}), 400
-
         answer = generate_financial_advice(
-            question=question,
-            sentiment_score=sentiment_score,
-            gainers_list=gainers_list,
-            portfolio=portfolio,
-            sharpe_value=sharpe_value,
-            transactions=transactions
+            question=data.get("question", ""),
+            sentiment_score=float(data.get("sentiment_score", 0.0)),
+            gainers_list=data.get("gainers_list", []),
+            portfolio=data.get("portfolio", {}),
+            sharpe_value=float(data.get("sharpe_value", 0.0)),
+            transactions=data.get("transactions", "")
         )
-
-        performance = predict_performance(price, sentiment_score)
+        performance = predict_performance(float(data.get("price", 100)), float(data.get("sentiment_score", 0.0)))
         sharpe = (performance - 0.02) / 0.2
         classification = classify_sharpe(sharpe)
-
         return jsonify({
             "status": "success",
             "answer": answer,
@@ -68,7 +56,6 @@ def ask_llm():
             "sharpe": sharpe,
             "classification": classification
         })
-
     except Exception as e:
         return jsonify({"status": "error", "message": f"LLM error: {str(e)}"}), 500
 
@@ -79,20 +66,12 @@ def upload_portfolio():
         file = request.files.get('file')
         if not file:
             return jsonify({"status": "error", "message": "No file uploaded"}), 400
-
         filename = secure_filename(file.filename)
         ext = os.path.splitext(filename)[1].lower()
-        if ext == ".csv":
-            df = pd.read_csv(file)
-        elif ext in [".xls", ".xlsx"]:
-            df = pd.read_excel(file)
-        else:
-            return jsonify({"status": "error", "message": "Invalid file type"}), 400
-
+        df = pd.read_csv(file) if ext == ".csv" else pd.read_excel(file)
         df = df[['Symbol', 'Quantity']]
         df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
         summary = df.groupby('Symbol')['Quantity'].sum().to_dict()
-
         fig, ax = plt.subplots()
         ax.pie(summary.values(), labels=summary.keys(), autopct='%1.1f%%')
         plt.title("Portfolio Allocation")
@@ -100,51 +79,38 @@ def upload_portfolio():
         plt.savefig(buf, format="png")
         buf.seek(0)
         chart_base64 = base64.b64encode(buf.read()).decode('utf-8')
-
-        return jsonify({
-            "status": "success",
-            "summary": summary,
-            "chart": chart_base64
-        })
+        return jsonify({"status": "success", "summary": summary, "chart": chart_base64})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# 📊 Calcul des métriques du portefeuille
+# 📊 Calcul des métriques
 @app.route('/portfolio-metrics', methods=['POST'])
 def portfolio_metrics():
     try:
         data = request.get_json()
         portfolio = data.get("portfolio", {})
-
         if not portfolio:
             return jsonify({"status": "error", "message": "Empty portfolio"}), 400
-
         df = load_cleaned_data()
         df = df[df['_id'].isin(portfolio.keys())]
         df['quantity'] = df['_id'].map(portfolio)
         df['weighted_perf'] = df['performance'] * df['quantity']
-
         avg_perf = df['weighted_perf'].sum() / df['quantity'].sum()
         volatility = 0.2
         sharpe = (avg_perf - 0.02) / volatility
-
         return jsonify({
             "status": "success",
             "average_performance": round(avg_perf, 4),
             "sharpe_ratio": round(sharpe, 4),
             "volatility_used": volatility
         })
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# 🔎 Recherche d’un symbole précis
+# 🔍 Recherche d’un symbole
 @app.route('/search-symbol', methods=['POST'])
 def search_symbol():
     user_input = request.json.get('query', '').strip().lower()
-    if not user_input:
-        return jsonify({"status": "error", "message": "Empty search input"})
-
     coll = db['yahoo_all_stocks']
     result = coll.find_one({
         "$or": [
@@ -152,19 +118,15 @@ def search_symbol():
             {"name": {"$regex": user_input, "$options": "i"}},
         ]
     })
-
     if result:
         result['_id'] = str(result['_id'])
         return jsonify({"status": "found", "data": [result]})
     return jsonify({"status": "not_found", "message": f"No stock found for '{user_input}'"})
 
-# 🧠 Autocomplétion
+# 🧠 Autocomplete
 @app.route('/autocomplete-symbols', methods=['POST'])
 def autocomplete_symbols():
     query = request.json.get('query', '').strip().lower()
-    if not query:
-        return jsonify({"status": "error", "matches": []})
-
     coll = db['yahoo_all_stocks']
     results = coll.find({
         "$or": [
@@ -172,11 +134,10 @@ def autocomplete_symbols():
             {"name": {"$regex": query, "$options": "i"}}
         ]
     }).limit(5)
-
     matches = [{"_id": doc["_id"], "name": doc.get("name", "")} for doc in results]
     return jsonify({"status": "success", "matches": matches})
 
-# 📈 Top gainers
+# 📈 Top Gainers
 @app.route('/top-gainers')
 def top_gainers():
     offset = int(request.args.get('offset', 0))
@@ -185,18 +146,21 @@ def top_gainers():
     result = [{'_id': doc['_id'], 'price': doc['price'], 'change': doc['change']} for doc in docs]
     return jsonify(result)
 
-# 📰 Analyse de sentiment (stockée)
+# 📰 Analyse de sentiment
 @app.route('/analyze-sentiment')
 def analyze_sentiment():
-    news = list(db["news_articles"].find().sort("scraped_at", -1).limit(5))
+    news = list(db["news_articles"].aggregate([
+        {"$sample": {"size": 5}},  # 5 articles aléatoires
+        {"$project": {"_id": 1, "title": 1, "link": 1}}  # Exclure le contenu pour ne garder que le titre et le lien
+    ]))
     avg_doc = db["avg_sentiment"].find_one()
     avg_score = avg_doc.get("avg_sentiment_score", 0.0) if avg_doc else 0.0
     return jsonify({
-        "news": [{"title": n["title"], "url": n["url"]} for n in news],
+        "news": [{"title": n["title"], "link": n["link"]} for n in news],
         "avg_score": avg_score
     })
 
-# 🧪 Analyse de sentiment (locale)
+# 🧪 Sentiment local (recalcul)
 @app.route('/analyze-news-local')
 def analyze_news_local():
     try:
@@ -206,14 +170,25 @@ def analyze_news_local():
         results = sentiment_pipeline(texts)
         scores = [r['score'] if r['label'] == 'positive' else -r['score'] for r in results]
         avg_score = round(sum(scores) / len(scores), 4) if scores else 0.0
+
+        # Mettre à jour les articles avec leur sentiment et score
+        for i, article in enumerate(news):
+            sentiment = results[i]['label']
+            sentiment_score = scores[i]
+            db["news_articles"].update_one(
+                {"_id": article["_id"]},
+                {"$set": {"sentiment": sentiment, "sentiment_score": sentiment_score, "analyzed_at": datetime.utcnow().isoformat()}}
+            )
+
         return jsonify({
-            "news": [{"title": n["title"], "url": n["url"]} for n in news],
+            "news": [{"title": n["title"], "link": n["link"]} for n in news],
             "avg_score": avg_score,
             "details": results
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-# 🚀 Lancement local uniquement (ne sera pas utilisé sur Azure)
+
+# 🚀 Local ou Azure (PORT variable)
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5050))
     app.run(debug=True, host="0.0.0.0", port=port)

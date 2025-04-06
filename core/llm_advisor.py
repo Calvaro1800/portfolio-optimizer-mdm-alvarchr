@@ -3,25 +3,19 @@ import torch
 import yfinance as yf
 import pandas as pd
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from llama_cpp import Llama
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 
 # 🔐 Chargement des variables d’environnement (.env)
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
-GGUF_MODEL_PATH = os.getenv("GGUF_MODEL_PATH", "models/llama/llama3-finance.gguf")
-
-# ✅ Vérification du fichier GGUF
-if not os.path.isfile(GGUF_MODEL_PATH):
-    raise FileNotFoundError(f"❌ Le modèle GGUF est introuvable à ce chemin : {GGUF_MODEL_PATH}")
 
 # 🔎 Chargement du modèle de sentiment Hugging Face
 SENTIMENT_MODEL = "mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis"
 tokenizer = AutoTokenizer.from_pretrained(SENTIMENT_MODEL, token=HF_TOKEN)
 model = AutoModelForSequenceClassification.from_pretrained(SENTIMENT_MODEL, token=HF_TOKEN)
 
-# 🧠 Chargement du modèle local LLaMA (GGUF)
-llm = Llama(model_path=GGUF_MODEL_PATH, n_ctx=1024, verbose=False)
+# 🧠 Chargement du modèle GPT-2 (Otto)
+generator = pipeline("text-generation", model="gpt2")
 
 # 📈 Analyse des meilleurs gainers sur Yahoo Finance
 def get_top_gainers(tickers: list, period="5d") -> list:
@@ -67,7 +61,7 @@ def calculate_sharpe_ratio(portfolio: dict, risk_free_rate=0.01) -> float:
     sharpe_ratio = excess_returns.mean() / excess_returns.std()
     return round(sharpe_ratio * (252**0.5), 2)
 
-# 🧠 Otto – Conseiller IA local
+# 🧠 Otto – Conseiller IA (version GPT-2 locale)
 def generate_financial_advice(
     question: str,
     sentiment_score: float = None,
@@ -100,25 +94,17 @@ Data available:
 - Recent Transactions: {transactions if transactions else "None"}
 - Sharpe Ratio: {sharpe_str}
 
-Respond in 2 to 4 sentences. Do not reflect internally or explain your instructions. Stay focused on the client’s needs. If data is missing, acknowledge it briefly and suggest general guidance.
+Respond in 2 to 4 sentences. Stay professional, helpful, and focused on the client’s goal.
 
 Otto's answer:
 """.strip()
 
     try:
-        result = llm(prompt=prompt, max_tokens=256, stop=["\n\n", "Otto:"], temperature=0.7)
-        output = (
-            result.get("choices", [{}])[0].get("text")
-            or result.get("content", "❌ No content returned")
-        ).strip()
-
-        if output.lower().startswith("you are") or "strategist" in output.lower():
-            return "⚠️ Otto could not generate valid advice. Please refine your question."
-
-        return output
-
+        output = generator(prompt, max_length=250, num_return_sequences=1)[0]["generated_text"]
+        answer = output.split("Otto's answer:")[-1].strip()
+        return answer
     except Exception as e:
-        return f"❌ LLM generation error: {e}"
+        return f"❌ Otto encountered an error: {e}"
 
 # 📊 Analyse de sentiment
 def analyze_sentiment(text: str) -> float:

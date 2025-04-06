@@ -1,5 +1,3 @@
-# compute_avg_sentiment.py
-
 import os
 from dotenv import load_dotenv
 from datetime import datetime, UTC
@@ -39,4 +37,3 @@ print(f"[✅] Moyenne du sentiment : {avg_score} (sur {len(scores)} articles)")
 print("[📝] Stockée dans la collection 'sentiment_stats'.")
 
 client.close()
-
